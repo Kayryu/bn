@@ -76,7 +76,7 @@ pub trait Group:
     fn normalize(&mut self);
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, RustcDecodable, RustcEncodable)]
+#[derive(Copy, Clone, PartialEq, Eq, RustcDecodable, RustcEncodable, Debug)]
 #[repr(C)]
 pub struct G1(groups::G1);
 
@@ -119,7 +119,7 @@ impl Mul<Fr> for G1 {
     fn mul(self, other: Fr) -> G1 { G1(self.0 * other.0) }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, RustcDecodable, RustcEncodable)]
+#[derive(Copy, Clone, PartialEq, Eq, RustcDecodable, RustcEncodable, Debug)]
 #[repr(C)]
 pub struct G2(groups::G2);
 
@@ -162,7 +162,15 @@ impl Mul<Fr> for G2 {
     fn mul(self, other: Fr) -> G2 { G2(self.0 * other.0) }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+pub fn multi(g1: G1, g2: G2) -> Gt {
+    let g1_pre = g1.0.to_affine().unwrap();
+    let g2_pre = g2.0.to_affine().unwrap().precompute();
+
+    let gt = g2_pre.miller_loop(&g1_pre);
+    return Gt(gt)
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(C)]
 pub struct Gt(fields::Fq12);
 
@@ -178,6 +186,33 @@ impl Mul<Gt> for Gt {
     fn mul(self, other: Gt) -> Gt { Gt(self.0 * other.0) }
 }
 
+impl Add<Gt> for Gt {
+    type Output = Gt;
+
+    fn add(self, other: Gt) -> Gt { Gt(self.0 + other.0) }
+}
+
 pub fn pairing(p: G1, q: G2) -> Gt {
     Gt(groups::pairing(&p.0, &q.0))
+}
+
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+#[repr(C)]
+pub struct It(fields::Fq12);
+
+impl It {
+    pub fn one() -> Self { It(fields::Fq12::one()) }
+    pub fn pow(&self, exp: Fr) -> Self { It(self.0.pow(exp.0)) }
+    pub fn inverse(&self) -> Self { It(self.0.inverse().unwrap()) }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+#[repr(C)]
+pub struct Ht(fields::Fq12);
+
+impl Ht {
+    pub fn one() -> Self { Ht(fields::Fq12::one()) }
+    pub fn pow(&self, exp: Fr) -> Self { Ht(self.0.pow(exp.0)) }
+    pub fn inverse(&self) -> Self { Ht(self.0.inverse().unwrap()) }
 }
